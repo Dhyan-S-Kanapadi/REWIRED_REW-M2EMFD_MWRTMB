@@ -3,6 +3,41 @@
 Screenshot in, verified ledger out. A four-person, six-hour hackathon project.
 A payment screenshot is a claim; bank CSV evidence is required for verification.
 
+## Demo screenshots
+
+The following screens show a local simulation using synthetic payment screenshots and bank data.
+
+### Foreman dashboard
+
+The dashboard displays collections, payment status, the review queue, and the audit trail.
+
+![Simulated ChitMirror foreman dashboard](Screenshots/Dashboard.png)
+
+### Chat workspace
+
+The chat workspace shows payment review requests and private reminders.
+
+![Simulated ChitMirror chat workspace](Screenshots/UI.png)
+
+### Run the synthetic screenshot demo
+
+After installing dependencies as described below, create a **new** demo database
+and start the server in PowerShell:
+
+```powershell
+$env:CHITMIRROR_DATABASE = Join-Path $env:TEMP ("chitmirror-demo-" + [guid]::NewGuid().ToString("N") + ".db")
+$env:CHITMIRROR_SIMULATED_DEMO = "1"
+.\.venv\Scripts\python -m scripts.prepare_simulated_demo $env:CHITMIRROR_DATABASE
+.\.venv\Scripts\python -m uvicorn backend.main:app --port 8000
+```
+
+Open `/chat/` and `/dashboard/` on `http://127.0.0.1:8000`. In Chat, click
+**Run matching demo** to post one verified synthetic payment, or **Run amount
+mismatch demo** to create a review item. A second matching submission is treated
+as a duplicate. The dashboard updates from the same database. The demo recognizes
+only supplied synthetic screenshots and compares them with a provisional synthetic
+bank CSV; it does not use live OCR, connect to a bank, or transfer money.
+
 ## Run locally
 
 Use Python 3.12 or newer. From the repository root:

@@ -30,7 +30,6 @@ def get_state(db, *, role, member_id=None):
                     status = "verified"
                 elif payment_status in ("needs_review", "manual_approved"):
                     status = "needs_review"
-                    flags.append({"item_id": item, "member_id": member_key, "month": month, "reason": "Payment requires review"})
                 elif payment_status == "rejected":
                     status = "rejected"
             entry = {"member_id": member_key, "month": month, "status": status, "amount_paise": amount, "utr": utr}
@@ -38,6 +37,12 @@ def get_state(db, *, role, member_id=None):
             if due < today and status != "verified":
                 overdue.append(entry)
     current = months[-1][0] if months else None
+    flags = [{"item_id": r[0], "member_id": r[1], "month": r[2], "reason": r[3] or "Payment requires review"}
+             for r in db.execute("""
+                SELECT p.id, p.member_id, p.month,
+                    (SELECT a.reason FROM audit_log a WHERE a.entity_id=p.id AND a.action='payments.insert' ORDER BY a.id DESC LIMIT 1)
+                FROM payments p WHERE p.status='needs_review' ORDER BY p.rowid DESC
+             """)]
     current_ledger = [entry for entry in ledger if entry["month"] == current]
     audit = [{"id": str(r[0]), "actor": r[1], "action": r[2], "reason": r[3], "timestamp": r[4]}
              for r in db.execute("SELECT id, actor, action, reason, timestamp FROM audit_log ORDER BY id")]

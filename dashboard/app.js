@@ -1,4 +1,5 @@
 const helpers = window.ChitMirrorState;
+if (window.CHITMIRROR_SIMULATED_DEMO) document.querySelector(".brand-type small").textContent = "SIMULATED · Synthetic bank data";
 const connection = document.querySelector("#connection");
 const connectionLabel = document.querySelector("#connection-label");
 const demoLoadButton = document.querySelector("#load-demo");
@@ -124,6 +125,9 @@ function renderContext(state) {
 
 function renderKpis(state) {
   const kpis = helpers.deriveKpis(state);
+  if (window.CHITMIRROR_SIMULATED_DEMO && currentRole === "foreman" && Array.isArray(state.flags)) {
+    kpis.needsReview = state.flags.length;
+  }
   text(document.querySelector("[data-kpi='collected']"), kpis.collected);
   text(document.querySelector("[data-kpi='paid']"), `${kpis.paid} / ${kpis.totalMembers}`);
   text(document.querySelector("[data-kpi='review']"), String(kpis.needsReview));
@@ -141,7 +145,7 @@ function renderKpis(state) {
 function statusRow(item, state, type) {
   const name = helpers.memberLabel(state, item.member_id);
   const entry = helpers.entryFor(state, item.member_id, item.month);
-  const amount = entry ? helpers.formatINR(entry.amount_paise) : "—";
+  const amount = type === "review" ? "—" : entry ? helpers.formatINR(entry.amount_paise) : "—";
   const reason = item.reason || LEDGER_STATUS[item.status]?.label || "No detail recorded";
   return `<div class="submission"><span class="file-icon">${type === "overdue" ? "⌛" : "▧"}</span><div class="submit-info"><b>${helpers.escapeHtml(name)}</b><small>Month ${helpers.escapeHtml(item.month)} · ${helpers.escapeHtml(reason)}</small></div><strong class="amount">${helpers.escapeHtml(amount)}</strong><span class="status ${type === "overdue" ? "rejected" : "needs-review"}"><i>${type === "overdue" ? "!" : "!"}</i> ${type === "overdue" ? "Overdue" : "Needs review"}</span></div>`;
 }
@@ -357,10 +361,18 @@ async function loadDemo() {
 }
 
 document.querySelector("#ledger-refresh")?.addEventListener("click", refresh);
+document.querySelector("#review-refresh")?.addEventListener("click", refresh);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refresh();
 });
 window.addEventListener("pagehide", stop);
+window.addEventListener("pageshow", event => {
+  if (event.persisted && stopped) {
+    stopped = false;
+    refresh();
+    timer = window.setInterval(refresh, POLL_MS);
+  }
+});
 
 refresh();
 timer = window.setInterval(refresh, POLL_MS);

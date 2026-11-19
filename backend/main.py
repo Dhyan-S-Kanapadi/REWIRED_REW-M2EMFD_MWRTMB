@@ -9,7 +9,7 @@ import json
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -20,6 +20,8 @@ from backend.messages import handle_message
 from backend.demo import load_demo
 from backend.reminders import send_reminders
 from backend.state import get_state
+from backend.review import review_payment
+from backend.simulated_demo import FIXTURES, submit_simulated
 from backend.provider_smoke import ProviderSmokeError
 from backend.screenshot_reader import needs_review_response, read_uploaded_screenshot
 import httpx
@@ -76,6 +78,14 @@ class DemoLoadRequest(BaseModel):
     actor: str
 
 
+class ReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    actor: str
+    item_id: str
+    decision: str
+    reason: str
+
+
 @app.exception_handler(RequestValidationError)
 async def invalid_request(request: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"error": {"code": "invalid_request", "message": "Invalid request."}})
@@ -86,10 +96,21 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/demo/screenshot")
+def demo_screenshot(scenario: str = "missing"):
+    if os.environ.get("CHITMIRROR_SIMULATED_DEMO") != "1":
+        return JSONResponse(status_code=404, content={"error": {"code": "not_found", "message": "Demo screenshot unavailable."}})
+    samples = {"missing": "fake/gpay/t07-fake-gpay-001.png", "matching": "genuine/gpay/t07-genuine-gpay-001.png", "mismatch": "wrong_amount/gpay/t07-wrong-amount-gpay-001.png"}
+    if scenario not in samples:
+        return JSONResponse(status_code=404, content={"error": {"code": "not_found", "message": "Demo scenario unavailable."}})
+    return FileResponse(FIXTURES / samples[scenario], media_type="image/png")
+
+
 @app.get("/config.js")
 def frontend_config():
     api_base = os.environ.get("CHITMIRROR_API_BASE", "")
-    return Response(f"window.CHITMIRROR_API_BASE = {json.dumps(api_base)};", media_type="application/javascript", headers={"Cache-Control": "no-store"})
+    simulated = os.environ.get("CHITMIRROR_SIMULATED_DEMO") == "1"
+    return Response(f"window.CHITMIRROR_API_BASE = {json.dumps(api_base)}; window.CHITMIRROR_SIMULATED_DEMO = {json.dumps(simulated)}; window.CHITMIRROR_DEMO_SCENARIOS = {json.dumps(simulated)};", media_type="application/javascript", headers={"Cache-Control": "no-store"})
 
 
 @app.post("/reminders/send")
@@ -139,11 +160,32 @@ async def message(request: Request):
         content = await image.read(10 * 1024 * 1024 + 1)
         if len(content) > 10 * 1024 * 1024:
             raise ProviderSmokeError("Screenshot exceeds 10 MiB.")
+        if os.environ.get("CHITMIRROR_SIMULATED_DEMO") == "1":
+            db, context = connect(database_path())
+            try:
+                try:
+                    return submit_simulated(db, context, sender=sender, content=content)
+                except ValueError as exc:
+                    return JSONResponse(status_code=422, content={"error": {"code": "invalid_request", "message": str(exc)}})
+            finally:
+                db.close()
         with httpx.Client() as client:
             claim = await asyncio.to_thread(read_uploaded_screenshot, image.filename or "screenshot", content, client)
         return needs_review_response(claim)
     except ProviderSmokeError as exc:
         return JSONResponse(status_code=422, content={"error": {"code": "screenshot_reader_error", "message": str(exc)}})
+
+
+@app.post("/review")
+def review(payload: ReviewRequest):
+    db, context = connect(database_path())
+    try:
+        try:
+            return review_payment(db, context, **payload.model_dump())
+        except ValueError as exc:
+            return JSONResponse(status_code=422, content={"error": {"code": "invalid_request", "message": str(exc)}})
+    finally:
+        db.close()
 
 
 @app.post("/demo/load")

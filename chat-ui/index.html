@@ -19,6 +19,7 @@
     </header>
 
     <p id="connection" class="connection" role="status">Checking backend…</p>
+    <p class="connection"><a href="/dashboard/" target="_blank" rel="noopener">Open dashboard for this demo session ↗</a></p>
 
     <section class="chat-card" aria-label="Chat workspace">
       <div class="chat-toolbar">
@@ -46,7 +47,20 @@
 
       <form id="composer" class="composer">
         <label for="message-input">Message or foreman command</label>
-        <textarea id="message-input" rows="3" placeholder="Try: dues, statement, reminders, Month 3, Name: Ravi" required></textarea>
+        <textarea id="message-input" rows="3" placeholder="Type a message or paste a screenshot"></textarea>
+        <div class="upload-controls">
+          <label class="upload-button" for="screenshot-input">📎 Attach screenshot</label>
+          <input id="screenshot-input" type="file" accept="image/png,image/jpeg" hidden>
+          <button id="demo-screenshot" type="button" hidden>Use demo screenshot</button>
+          <button class="demo-scenario" data-scenario="matching" type="button" hidden>Run matching demo</button>
+          <button class="demo-scenario" data-scenario="mismatch" type="button" hidden>Run amount mismatch demo</button>
+          <span>or paste / drag a PNG or JPG here</span>
+        </div>
+        <div id="screenshot-preview" class="screenshot-preview" hidden>
+          <img id="screenshot-thumbnail" alt="Selected screenshot preview">
+          <span id="screenshot-name"></span>
+          <button id="screenshot-cancel" type="button">Remove</button>
+        </div>
         <p class="hint-label">Command hints · suggestions only</p>
         <output id="command-hints" class="command-hints" data-testid="command-hints" aria-live="polite" hidden></output>
         <div class="composer-footer"><span>Server checks commands and selects private replies · Ctrl+Enter to send</span><div class="send-controls"><span id="send-status" class="send-status" role="status" aria-live="polite" hidden></span><button id="send-message" type="submit">Send message <span aria-hidden="true">→</span></button></div></div>

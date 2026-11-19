@@ -58,7 +58,7 @@
       <section class="kpis" aria-label="Monthly summary">
         <article class="kpi-card collected"><div class="kpi-label">Collected <span class="kpi-icon">₹</span></div><strong id="kpi-collected" data-kpi="collected" data-testid="kpi-collected">—</strong><p>Total verified collections</p></article>
         <article class="kpi-card paid"><div class="kpi-label">Members paid <span class="kpi-icon">✓</span></div><strong id="kpi-paid" data-kpi="paid" data-testid="kpi-paid">—</strong><p>Verified contributions</p></article>
-        <article class="kpi-card review"><div class="kpi-label">Needs review <span class="kpi-icon">!</span></div><strong id="kpi-review" data-kpi="review" data-testid="kpi-review">—</strong><p>Payment submissions flagged</p></article>
+        <article class="kpi-card review"><div class="kpi-label">Needs review <span class="kpi-icon">!</span></div><strong id="kpi-review" data-kpi="review" data-testid="kpi-review">—</strong><p>Open review items</p></article>
         <article class="kpi-card overdue"><div class="kpi-label">Overdue <span class="kpi-icon">⌛</span></div><strong id="kpi-overdue" data-kpi="overdue" data-testid="kpi-overdue">—</strong><p>Members with an outstanding due</p></article>
 
       </section>
@@ -79,7 +79,7 @@
         </article>
 
         <article class="card inbox-card">
-          <div class="card-heading"><div><h2>Review queue <span class="heading-count" id="review-count">—</span></h2><p>Items flagged for foreman confirmation.</p></div></div>
+          <div class="card-heading"><div><h2>Review queue <span class="heading-count" id="review-count">—</span></h2><p>All months · new submissions appear here.</p></div><button id="review-refresh" type="button">Refresh</button></div>
           <div class="submission-list" id="review-list"><p class="empty-note">Loading review queue…</p></div>
           <div class="release-panel"><span class="lock-icon">▣</span><span><b>Prize release</b><small>Available when all payments are verified</small></span><button type="button" disabled title="Payout eligibility is not reached">Not ready</button></div>
         </article>

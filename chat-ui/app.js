@@ -1,4 +1,5 @@
 const connection = document.querySelector("#connection");
+if (window.CHITMIRROR_SIMULATED_DEMO) document.querySelector(".tagline").textContent = "SIMULATED DEMO · Synthetic screenshots and bank data";
 const senderPicker = document.querySelector("#sender");
 const reviewQueue = document.querySelector("#review-queue");
 const queueStatus = document.querySelector("#queue-status");
@@ -13,7 +14,99 @@ const notice = document.querySelector("#notice");
 const composer = document.querySelector("#composer");
 const sendButton = document.querySelector("#send-message");
 const sendStatus = document.querySelector("#send-status");
+const screenshotInput = document.querySelector("#screenshot-input");
+const screenshotPreview = document.querySelector("#screenshot-preview");
+const screenshotThumbnail = document.querySelector("#screenshot-thumbnail");
+const screenshotName = document.querySelector("#screenshot-name");
+let selectedScreenshot = null;
+let screenshotUrl = null;
 let members = [];
+
+function clearScreenshot() {
+  if (screenshotUrl) URL.revokeObjectURL(screenshotUrl);
+  screenshotUrl = null;
+  selectedScreenshot = null;
+  screenshotInput.value = "";
+  screenshotPreview.hidden = true;
+  screenshotThumbnail.removeAttribute("src");
+  screenshotName.textContent = "";
+}
+
+function selectScreenshot(file) {
+  if (!file || !["image/png", "image/jpeg"].includes(file.type)) {
+    showNotice("Please select a PNG or JPG screenshot.", true);
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024 || !file.size) {
+    showNotice("Screenshot must be between 1 byte and 10 MiB.", true);
+    return;
+  }
+  clearScreenshot();
+  selectedScreenshot = file;
+  screenshotUrl = URL.createObjectURL(file);
+  screenshotThumbnail.src = screenshotUrl;
+  screenshotName.textContent = file.name || "Pasted screenshot";
+  screenshotPreview.hidden = false;
+  showNotice("", false);
+}
+
+screenshotInput.addEventListener("change", function() { if (this.files[0]) selectScreenshot(this.files[0]); });
+const demoScreenshot = document.querySelector("#demo-screenshot");
+if (window.CHITMIRROR_SIMULATED_DEMO) {
+  demoScreenshot.hidden = false;
+  demoScreenshot.addEventListener("click", async function() {
+    try {
+      const response = await fetch(String(window.CHITMIRROR_API_BASE || "").replace(/\/+$/, "") + "/demo/screenshot");
+      if (!response.ok) throw new Error("Could not load the demo screenshot.");
+      senderPicker.value = "member-07";
+      senderPicker.dispatchEvent(new Event("change"));
+      selectScreenshot(new File([await response.blob()], "demo-synthetic.png", {type: "image/png"}));
+    } catch (error) {
+      showNotice(error.message || "Could not load the demo screenshot.", true);
+    }
+  });
+  if (window.CHITMIRROR_DEMO_SCENARIOS) document.querySelectorAll(".demo-scenario").forEach(function(button) {
+    button.hidden = false;
+    button.addEventListener("click", async function() {
+      if (sendButton.disabled || button.disabled) return;
+      if (messageInput.value.trim() || selectedScreenshot) {
+        showNotice("Send or clear your current draft before running a demo.", true);
+        return;
+      }
+      if (!members.some(member => member.id === "member-07")) {
+        showNotice("Wait for the demo members to load, then try again.", true);
+        return;
+      }
+      document.querySelectorAll(".demo-scenario").forEach(item => item.disabled = true);
+      try {
+        const scenario = button.dataset.scenario;
+        const response = await fetch(String(window.CHITMIRROR_API_BASE || "").replace(/\/+$/, "") + "/demo/screenshot?scenario=" + encodeURIComponent(scenario));
+        if (!response.ok) throw new Error("Could not load the demo screenshot.");
+        if (senderPicker.value !== "member-07") {
+          senderPicker.value = "member-07";
+          senderPicker.dispatchEvent(new Event("change"));
+        }
+        selectScreenshot(new File([await response.blob()], "synthetic-" + scenario + ".png", {type: "image/png"}));
+        composer.requestSubmit();
+      } catch (error) {
+        showNotice(error.message || "Could not run the demo.", true);
+      } finally {
+        document.querySelectorAll(".demo-scenario").forEach(item => item.disabled = false);
+      }
+    });
+  });
+}
+document.querySelector("#screenshot-cancel").addEventListener("click", clearScreenshot);
+document.addEventListener("paste", function(event) {
+  const item = Array.from(event.clipboardData?.items || []).find(entry => entry.type.startsWith("image/"));
+  if (item) { event.preventDefault(); selectScreenshot(item.getAsFile()); }
+});
+const chatCard = document.querySelector(".chat-card");
+chatCard.addEventListener("dragover", function(event) { event.preventDefault(); });
+chatCard.addEventListener("drop", function(event) {
+  event.preventDefault();
+  if (event.dataTransfer.files.length) selectScreenshot(event.dataTransfer.files[0]);
+});
 
 function showNotice(message, isError) {
   notice.textContent = message || "";
@@ -331,6 +424,7 @@ function updateCommandHints() {
 }
 
 senderPicker.addEventListener("change", function() {
+  clearScreenshot();
   clearConversation();
   setSenderOptions();
   updateCommandHints();
@@ -343,11 +437,12 @@ composer.addEventListener("submit", async function(event) {
   event.preventDefault();
   if (sendButton.disabled) return;
   const text = messageInput.value.trim();
-  if (!text) {
+  if (!text && !selectedScreenshot) {
     messageInput.focus();
     return;
   }
   const senderId = senderPicker.value;
+  const screenshot = selectedScreenshot;
   const senderLabel = senderPicker.selectedOptions[0] ? senderPicker.selectedOptions[0].textContent : "Foreman";
   const sentAt = new Date();
   const outgoingKind = senderId === "foreman" ? "outgoing-bubble foreman-bubble" : "outgoing-bubble member-bubble";
@@ -357,15 +452,16 @@ composer.addEventListener("submit", async function(event) {
   sendStatus.textContent = "Sending message…";
   showNotice("", false);
   try {
-    const payload = await window.ChitMirrorApi.sendMessage(senderId, text);
+    const payload = await window.ChitMirrorApi.sendMessage(senderId, text, screenshot);
     if (senderPicker.value !== senderId) return;
-    addTextBubble(senderLabel, text, outgoingKind, sentAt);
+    addTextBubble(senderLabel, screenshot ? (text ? text + " · " : "") + "Screenshot: " + screenshot.name : text, outgoingKind, sentAt);
     if (!payload.bubbles.length) {
       addTextBubble("ChitMirror", "No details are available for this command.", "server-bubble", "empty-result");
       showNotice("No details are available for this command.", false);
     }
     payload.bubbles.forEach(renderBubble);
     messageInput.value = "";
+    clearScreenshot();
     updateCommandHints();
     messageList.scrollTop = messageList.scrollHeight;
   } catch (error) {

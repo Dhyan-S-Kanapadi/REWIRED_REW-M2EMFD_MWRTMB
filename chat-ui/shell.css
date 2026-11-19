@@ -62,3 +62,10 @@
     text-align: right;
   }
 }
+.upload-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:10px 0; color:#536879; font-size:0.85rem; }
+.upload-button { display:inline-block; cursor:pointer; border:1px solid #c9d9d5; border-radius:8px; padding:8px 12px; background:#f4faf7; color:#145c4b; font-weight:600; }
+.demo-scenario { cursor:pointer; border:1px solid #c9d9d5; border-radius:8px; padding:8px 12px; background:#f4faf7; color:#145c4b; font-weight:600; }
+.screenshot-preview { display:flex; align-items:center; gap:10px; margin:8px 0; }
+.screenshot-preview[hidden] { display:none; }
+.screenshot-preview img { width:70px; height:70px; object-fit:contain; border:1px solid #ccd9d1; border-radius:6px; }
+.screenshot-preview button { cursor:pointer; }
