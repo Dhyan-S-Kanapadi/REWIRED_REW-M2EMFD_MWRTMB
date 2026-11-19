@@ -89,3 +89,17 @@ def test_scheduler_tick_and_send_now_endpoint(store, monkeypatch):
     assert response.json() == {"sent": 1}
     assert len(private_bubbles(db, "m2")) == 2
     assert private_bubbles(db, "m1") == []
+
+
+def test_reminder_request_schema_is_strict():
+    client = TestClient(app)
+    invalid_payloads = [
+        {},
+        {"actor": ""},
+        {"actor": 7},
+        {"actor": "foreman", "extra": True},
+    ]
+    for payload in invalid_payloads:
+        response = client.post("/reminders/send", json=payload)
+        assert response.status_code == 422
+        validator_for("error_response").validate(response.json())

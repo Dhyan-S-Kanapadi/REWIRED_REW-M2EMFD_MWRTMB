@@ -13,7 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.database import connect
 from backend.demo import load_demo
@@ -58,12 +58,12 @@ app = FastAPI(title="ChitMirror", version="0.0.1", lifespan=lifespan)
 
 class ReminderRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    actor: str
+    actor: str = Field(min_length=1)
 
 
 class DemoLoadRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    actor: str
+    actor: str = Field(min_length=1)
 
 
 @app.exception_handler(RequestValidationError)

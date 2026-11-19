@@ -55,6 +55,8 @@ const elements = {
   reviewCount: document.querySelector("#review-count"),
   reviewList: document.querySelector("#review-list"),
   overdueList: document.querySelector("#overdue-list"),
+  sendReminders: document.querySelector("#send-reminders"),
+  reminderStatus: document.querySelector("#reminder-status"),
   auditList: document.querySelector("#audit-list"),
   memberPanel: document.querySelector("#member-panel"),
   memberStatementTitle: document.querySelector("#member-statement-title"),
@@ -71,6 +73,7 @@ let currentMemberId = window.CHITMIRROR_DEFAULT_MEMBER || "member-07";
 let lastState = null;
 let lastSource = "loading";
 let requestPending = false;
+let reminderPending = false;
 let stopped = false;
 let timer = null;
 let stateRequestCount = 0;
@@ -138,12 +141,62 @@ function renderKpis(state) {
   text(elements.overviewOverdue, String(kpis.overdue));
 }
 
-function statusRow(item, state, type) {
-  const name = helpers.memberLabel(state, item.member_id);
-  const entry = helpers.entryFor(state, item.member_id, item.month);
-  const amount = entry ? helpers.formatINR(entry.amount_paise) : "—";
-  const reason = item.reason || LEDGER_STATUS[item.status]?.label || "No detail recorded";
-  return `<div class="submission"><span class="file-icon">${type === "overdue" ? "⌛" : "▧"}</span><div class="submit-info"><b>${helpers.escapeHtml(name)}</b><small>Month ${helpers.escapeHtml(item.month)} · ${helpers.escapeHtml(reason)}</small></div><strong class="amount">${helpers.escapeHtml(amount)}</strong><span class="status ${type === "overdue" ? "rejected" : "needs-review"}"><i>${type === "overdue" ? "!" : "!"}</i> ${type === "overdue" ? "Overdue" : "Needs review"}</span></div>`;
+function safeText(value, fallback) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function statusLabel(value) {
+  return LEDGER_STATUS[value]?.label || safeText(value, "Status not recorded");
+}
+
+function timestampLabel(value) {
+  if (typeof value !== "string" || !value.trim()) return "No timestamp";
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toLocaleString() : value;
+}
+
+function sortedAudit(entries) {
+  return [...entries].sort((left, right) => {
+    const leftTime = Date.parse(left && left.timestamp);
+    const rightTime = Date.parse(right && right.timestamp);
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime)) return rightTime - leftTime;
+    if (Number.isFinite(leftTime)) return -1;
+    if (Number.isFinite(rightTime)) return 1;
+    return String(right && right.id || "").localeCompare(String(left && left.id || ""));
+  });
+}
+
+function flagRow(flag, state) {
+  const memberId = safeText(flag && flag.member_id, "");
+  const month = Number(flag && flag.month);
+  const hasMonth = Number.isInteger(month) && month > 0;
+  const itemId = safeText(flag && flag.item_id, "");
+  const reason = safeText(flag && flag.reason, "No reason supplied");
+  const entry = hasMonth ? helpers.entryFor(state, memberId, month) : null;
+  const amount = entry && Number.isFinite(Number(entry.amount_paise)) ? helpers.formatINR(entry.amount_paise) : "—";
+  const status = entry ? statusLabel(entry.status) : "Status not recorded";
+  const monthLabel = hasMonth ? `Month ${month}` : "Month not recorded";
+  return `<div class="submission" data-testid="flag-row" data-item-id="${helpers.escapeHtml(itemId)}"><span class="file-icon">!</span><div class="submit-info"><b>${helpers.escapeHtml(helpers.memberLabel(state, memberId))}</b><small class="reference">Ref ${helpers.escapeHtml(itemId || "not recorded")} · ${helpers.escapeHtml(monthLabel)}</small><p class="reason">${helpers.escapeHtml(reason)}</p></div><strong class="amount">${helpers.escapeHtml(amount)}</strong><span class="status needs-review">${helpers.escapeHtml(status)}</span></div>`;
+}
+
+function overdueRow(item, state) {
+  const memberId = safeText(item && item.member_id, "");
+  const month = Number(item && item.month);
+  const hasMonth = Number.isInteger(month) && month > 0;
+  const status = statusLabel(item && item.status);
+  const amount = Number.isFinite(Number(item && item.amount_paise)) ? helpers.formatINR(item.amount_paise) : "—";
+  const utr = safeText(item && item.utr, "");
+  const details = `${hasMonth ? `Month ${month}` : "Month not recorded"} · UTR ${utr || "not recorded"}`;
+  return `<div class="activity-row" data-testid="overdue-row" data-member-id="${helpers.escapeHtml(memberId)}" data-month="${hasMonth ? month : ""}"><span class="activity-dot red-dot"></span><span><b>${helpers.escapeHtml(helpers.memberLabel(state, memberId))}</b><small>${helpers.escapeHtml(details)}</small></span><strong class="overdue-amount">${helpers.escapeHtml(amount)}</strong><span class="status rejected">${helpers.escapeHtml(status)}</span></div>`;
+}
+
+function auditRow(item) {
+  const id = safeText(item && item.id, "");
+  const action = safeText(item && item.action, "Action recorded");
+  const actor = safeText(item && item.actor, "system");
+  const reason = safeText(item && item.reason, "No reason recorded");
+  const timestamp = timestampLabel(item && item.timestamp);
+  return `<div class="activity-row" data-testid="audit-row" data-audit-id="${helpers.escapeHtml(id)}"><span class="activity-dot green-dot"></span><span><b>${helpers.escapeHtml(action)}</b><small>${helpers.escapeHtml(actor)} · ${helpers.escapeHtml(timestamp)}</small><p class="audit-reason">${helpers.escapeHtml(reason)}</p></span><small class="audit-ref">${helpers.escapeHtml(id || "No reference")}</small></div>`;
 }
 
 function renderForemanPanels(state) {
@@ -152,14 +205,17 @@ function renderForemanPanels(state) {
   const audit = Array.isArray(state?.audit_log) ? state.audit_log : [];
   text(elements.reviewCount, String(flags.length));
   html(elements.reviewList, flags.length
-    ? flags.map(flag => statusRow(flag, state, "review")).join("")
+    ? flags.map(flag => flagRow(flag, state)).join("")
     : '<p class="empty-note">No items need review.</p>');
+  elements.reviewList?.setAttribute("aria-busy", "false");
   html(elements.overdueList, overdue.length
-    ? overdue.map(item => statusRow(item, state, "overdue")).join("")
+    ? overdue.map(item => overdueRow(item, state)).join("")
     : '<p class="empty-note">No overdue payments recorded.</p>');
+  elements.overdueList?.setAttribute("aria-busy", "false");
   html(elements.auditList, audit.length
-    ? audit.slice(-3).reverse().map(item => `<div class="activity-row"><span class="activity-dot green-dot"></span><span><b>${helpers.escapeHtml(item.action || "Action recorded")}</b><small>${helpers.escapeHtml(item.actor || "system")} · ${helpers.escapeHtml(item.reason || "No reason recorded")}</small></span></div>`).join("")
+    ? sortedAudit(audit).map(auditRow).join("")
     : '<p class="empty-note">No audit events recorded.</p>');
+  elements.auditList?.setAttribute("aria-busy", "false");
 }
 
 function renderMemberPanel(state) {
@@ -254,8 +310,11 @@ function showFailure(error) {
     html(elements.ledgerGrid, '<p class="ledger-placeholder">Waiting for shared state…</p>');
     elements.ledgerGrid?.setAttribute("aria-busy", "false");
     html(elements.reviewList, '<p class="empty-note">State unavailable.</p>');
+    elements.reviewList?.setAttribute("aria-busy", "false");
     html(elements.overdueList, '<p class="empty-note">State unavailable.</p>');
+    elements.overdueList?.setAttribute("aria-busy", "false");
     html(elements.auditList, '<p class="empty-note">State unavailable.</p>');
+    elements.auditList?.setAttribute("aria-busy", "false");
     html(elements.memberStatement, '<p class="empty-note">State unavailable.</p>');
     html(elements.memberBubbles, '<p class="empty-note">State unavailable.</p>');
   }
@@ -275,6 +334,46 @@ async function fetchFixtureState() {
   const state = await response.json();
   if (!state || typeof state !== "object" || !Array.isArray(state.members)) throw new Error("Fixture is missing members");
   return state;
+}
+
+async function sendRemindersNow() {
+  const actor = "foreman";
+  if (currentRole !== "foreman" || reminderPending || !elements.sendReminders || elements.sendReminders.disabled) return;
+  if (typeof actor !== "string" || !actor.trim()) {
+    text(elements.reminderStatus, "Reminder request is missing an actor.");
+    return;
+  }
+  reminderPending = true;
+  elements.sendReminders.disabled = true;
+  elements.sendReminders.setAttribute("aria-busy", "true");
+  text(elements.sendReminders, "Sending…");
+  text(elements.reminderStatus, "Sending private reminders…");
+  try {
+    const response = await fetch(`${apiBase()}/reminders/send`, {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ actor }),
+      cache: "no-store"
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload && payload.error && safeText(payload.error.message, "");
+      throw new Error(message || `POST /reminders/send failed (${response.status}).`);
+    }
+    if (!payload || !Number.isInteger(payload.sent) || payload.sent < 0) {
+      throw new Error("The reminders endpoint returned an unexpected response.");
+    }
+    const noun = payload.sent === 1 ? "reminder" : "reminders";
+    text(elements.reminderStatus, `Backend recorded ${payload.sent} private ${noun}. No WhatsApp or external message was sent.`);
+    await refresh();
+  } catch (error) {
+    text(elements.reminderStatus, `Could not send reminders: ${error.message || "request failed"}.`);
+  } finally {
+    reminderPending = false;
+    elements.sendReminders.disabled = false;
+    elements.sendReminders.removeAttribute("aria-busy");
+    text(elements.sendReminders, "Send reminders now");
+  }
 }
 
 async function refresh() {
@@ -327,6 +426,7 @@ document.querySelectorAll("[data-role]").forEach(button => {
   button.addEventListener("click", () => applyRole(button.dataset.role));
 });
 if (demoLoadButton) demoLoadButton.addEventListener("click", loadDemo);
+elements.sendReminders?.addEventListener("click", sendRemindersNow);
 elements.memberSelect?.addEventListener("change", event => {
   currentMemberId = event.target.value;
   if (lastState) renderAll(lastState, lastSource);
@@ -369,6 +469,7 @@ window.chitmirrorDashboard = {
   stop,
   refresh,
   applyRole,
+  sendRemindersNow,
   get pollMs() { return POLL_MS; },
   get role() { return currentRole; },
   get requestCount() { return stateRequestCount; },

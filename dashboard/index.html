@@ -80,19 +80,23 @@
 
         <article class="card inbox-card">
           <div class="card-heading"><div><h2>Review queue <span class="heading-count" id="review-count">—</span></h2><p>Items flagged for foreman confirmation.</p></div></div>
-          <div class="submission-list" id="review-list"><p class="empty-note">Loading review queue…</p></div>
+          <div class="submission-list" id="review-list" data-testid="review-list" aria-busy="true"><p class="empty-note">Loading review queue…</p></div>
           <div class="release-panel"><span class="lock-icon">▣</span><span><b>Prize release</b><small>Available when all payments are verified</small></span><button type="button" disabled title="Payout eligibility is not reached">Not ready</button></div>
         </article>
       </section>
 
       <section class="bottom-grid" data-role-panel="foreman">
         <article class="card quick-card">
-          <div class="card-heading"><div><h2>Overdue follow-ups</h2><p>Outstanding dues from shared state.</p></div></div>
-          <div class="activity-list" id="overdue-list"><p class="empty-note">Loading overdue items…</p></div>
+          <div class="card-heading"><div><h2>Overdue follow-ups</h2><p>Outstanding dues from shared state.</p></div>
+            <button id="send-reminders" class="reminder-send" type="button" data-testid="send-reminders" aria-describedby="reminder-note">Send reminders now</button>
+          </div>
+          <div class="activity-list" id="overdue-list" data-testid="overdue-list" aria-busy="true"><p class="empty-note">Loading overdue items…</p></div>
+          <p class="reminder-status" id="reminder-status" aria-live="polite"></p>
+          <p class="reminder-note" id="reminder-note">Records private in-app demo reminders only; no WhatsApp or external message is sent.</p>
         </article>
         <article class="card activity-card">
-          <div class="card-heading"><div><h2>Audit trail</h2><p>Recent recorded actions.</p></div></div>
-          <div class="activity-list" id="audit-list"><p class="empty-note">Loading audit trail…</p></div>
+          <div class="card-heading"><div><h2>Audit trail</h2><p>Recorded actions from shared state.</p></div><span class="read-only-tag">Read-only</span></div>
+          <div class="activity-list" id="audit-list" data-testid="audit-list" aria-busy="true"><p class="empty-note">Loading audit trail…</p></div>
         </article>
       </section>
 
