@@ -36,10 +36,11 @@
     });
   }
 
-  function sendMessage(sender, text) {
+  function sendMessage(sender, text, image) {
     const body = new FormData();
     body.append("sender", sender);
     body.append("text", text);
+    if (image) body.append("image", image);
     return request("/message", {method: "POST", headers: {Accept: "application/json"}, body: body})
       .then(validateMessageResponse);
   }

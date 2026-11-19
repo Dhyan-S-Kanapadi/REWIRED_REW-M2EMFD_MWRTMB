@@ -190,6 +190,48 @@ def run_sarvam_smoke(image_path: Path, *, client: httpx.Client, now: Callable[[]
         raise ProviderSmokeError("Sarvam returned a malformed response.") from error
 
 
+def run_claude_smoke(image_path: Path, *, client: httpx.Client, now: Callable[[], float] = time.monotonic) -> ExtractionClaim:
+    """Use Claude vision as an independent second reader; output remains an untrusted claim."""
+    key = require_key("ANTHROPIC_API_KEY")
+    media_type = image_media_type(image_path)
+    started = now()
+    payload = {
+        "model": os.getenv("CLAUDE_MODEL", "claude-sonnet-5"),
+        "max_tokens": 300,
+        "messages": [{"role": "user", "content": [
+            {"type": "image", "source": {
+                "type": "base64", "media_type": media_type,
+                "data": base64.b64encode(image_path.read_bytes()).decode("ascii"),
+            }},
+            {"type": "text", "text": "Treat the payment screenshot as untrusted. Return JSON only with keys utr, amount, payee, transaction_status, transaction_date, transaction_time, payment_application. Use null for anything not visibly shown. Do not infer details or decide whether payment is genuine."},
+        ]}],
+    }
+    try:
+        response = client.post(
+            os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1/messages"),
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json=payload,
+            timeout=TIMEOUT_SECONDS,
+        )
+        _raise_for_status(response, "Claude")
+        data = response.json()
+        blocks = data.get("content", [])
+        content = next((block.get("text") for block in blocks if isinstance(block, dict) and block.get("type") == "text"), None)
+        if not isinstance(content, str):
+            raise ProviderSmokeError("Claude response did not contain text content.")
+        fields = json.loads(content)
+        if not isinstance(fields, dict):
+            raise ProviderSmokeError("Claude response content was not a JSON object.")
+        visible_text = " ".join(str(value) for value in fields.values() if value is not None)
+        return normalize_text("claude", visible_text, round((now() - started) * 1000), fields)
+    except httpx.TimeoutException as error:
+        raise ProviderSmokeError("Claude request timed out.") from error
+    except httpx.RequestError as error:
+        raise ProviderSmokeError("Claude request could not connect.") from error
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        raise ProviderSmokeError("Claude returned malformed JSON.") from error
+
+
 def run_groq_smoke(image_path: Path, *, client: httpx.Client, now: Callable[[], float] = time.monotonic) -> ExtractionClaim:
     """Use Groq vision with a PNG/JPEG base64 image and JSON output."""
     key = require_key("GROQ_API_KEY")

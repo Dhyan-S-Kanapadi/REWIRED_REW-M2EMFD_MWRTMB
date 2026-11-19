@@ -46,7 +46,8 @@
 
       <form id="composer" class="composer">
         <label for="message-input">Message or foreman command</label>
-        <textarea id="message-input" rows="3" placeholder="Try: dues, statement, reminders, Month 3, Name: Ravi" required></textarea>
+        <textarea id="message-input" rows="3" placeholder="Try: dues, statement, reminders, Month 3, Name: Ravi"></textarea>
+        <div class="upload-controls"><input id="payment-image" type="file" accept="image/png,image/jpeg" hidden><button id="attach-screenshot" type="button">Attach screenshot</button><button id="remove-screenshot" type="button" hidden>Remove</button><span id="image-name" aria-live="polite"></span></div><div id="image-preview" class="image-preview" hidden><img id="preview-image" alt="Payment screenshot preview"></div>
         <p class="hint-label">Command hints · suggestions only</p>
         <output id="command-hints" class="command-hints" data-testid="command-hints" aria-live="polite" hidden></output>
         <div class="composer-footer"><span>Server checks commands and selects private replies · Ctrl+Enter to send</span><div class="send-controls"><span id="send-status" class="send-status" role="status" aria-live="polite" hidden></span><button id="send-message" type="submit">Send message <span aria-hidden="true">→</span></button></div></div>

@@ -15,3 +15,7 @@
 
 .demo-load-button{border:0;border-radius:7px;background:#0f766e;color:#fff;padding:8px 11px;font:700 9px "Segoe UI",Arial,sans-serif;white-space:nowrap;cursor:pointer;box-shadow:0 2px 5px #0f766e22}.demo-load-button:hover{background:#0c625c}.demo-load-button:focus-visible{outline:3px solid #1e8e7e;outline-offset:2px}.demo-load-button:disabled{opacity:.58;cursor:wait}.demo-load-button[hidden]{display:none}
 @media(max-width:720px){.demo-load-button{padding:7px 9px}}
+
+.reminder-send-button{border:1px solid #b5ddd5;border-radius:6px;background:#effaf7;color:#0f766e;padding:6px 9px;font:600 9px "Segoe UI",Arial,sans-serif;cursor:pointer}.reminder-send-button:disabled{opacity:.55;cursor:wait}.reminder-send-button:focus-visible{outline:3px solid #1e8e7e;outline-offset:2px}
+
+.review-actions{display:flex;gap:6px;grid-column:2/-1;margin-top:5px}.review-actions button{border:1px solid #d9e1e8;border-radius:6px;background:#fff;color:#34475b;padding:5px 8px;font:inherit;font-size:9px;font-weight:600;cursor:pointer}.review-actions button:first-child{border-color:#0f766e;color:#0f766e}.review-actions button:last-child{border-color:#c83c43;color:#c83c43}.review-actions button:disabled{opacity:.55;cursor:wait}

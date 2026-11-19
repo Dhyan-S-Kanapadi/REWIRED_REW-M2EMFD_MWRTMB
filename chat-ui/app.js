@@ -13,7 +13,42 @@ const notice = document.querySelector("#notice");
 const composer = document.querySelector("#composer");
 const sendButton = document.querySelector("#send-message");
 const sendStatus = document.querySelector("#send-status");
+const imageInput = document.querySelector("#payment-image");
+const imagePreview = document.querySelector("#image-preview");
+const previewImage = document.querySelector("#preview-image");
+const imageName = document.querySelector("#image-name");
+const removeImageButton = document.querySelector("#remove-screenshot");
+let selectedImage = null;
 let members = [];
+function setSelectedImage(file) {
+  if (!file) return;
+  if (!["image/png", "image/jpeg"].includes(file.type)) { showNotice("Choose a PNG or JPG screenshot.", true); return; }
+  if (file.size > 10 * 1024 * 1024) { showNotice("Screenshot must be 10 MiB or smaller.", true); return; }
+  selectedImage = file;
+  previewImage.src = URL.createObjectURL(file);
+  imageName.textContent = file.name;
+  imagePreview.hidden = false;
+  removeImageButton.hidden = false;
+  showNotice("", false);
+}
+function clearSelectedImage() {
+  if (previewImage.src.startsWith("blob:")) URL.revokeObjectURL(previewImage.src);
+  selectedImage = null; imageInput.value = ""; imagePreview.hidden = true;
+  removeImageButton.hidden = true; imageName.textContent = ""; previewImage.removeAttribute("src");
+}
+document.querySelector("#attach-screenshot").addEventListener("click", () => imageInput.click());
+imageInput.addEventListener("change", () => setSelectedImage(imageInput.files[0]));
+removeImageButton.addEventListener("click", clearSelectedImage);
+messageInput.addEventListener("paste", event => {
+  const item = Array.from(event.clipboardData?.items || []).find(entry => entry.type.startsWith("image/"));
+  if (item) { const file = item.getAsFile(); if (file) setSelectedImage(file); }
+});
+composer.addEventListener("dragover", event => { event.preventDefault(); });
+composer.addEventListener("drop", event => {
+  event.preventDefault();
+  const file = Array.from(event.dataTransfer?.files || []).find(entry => entry.type.startsWith("image/"));
+  if (file) setSelectedImage(file);
+});
 
 function showNotice(message, isError) {
   notice.textContent = message || "";
@@ -343,7 +378,7 @@ composer.addEventListener("submit", async function(event) {
   event.preventDefault();
   if (sendButton.disabled) return;
   const text = messageInput.value.trim();
-  if (!text) {
+  if (!text && !selectedImage) {
     messageInput.focus();
     return;
   }
@@ -357,7 +392,7 @@ composer.addEventListener("submit", async function(event) {
   sendStatus.textContent = "Sending message…";
   showNotice("", false);
   try {
-    const payload = await window.ChitMirrorApi.sendMessage(senderId, text);
+    const payload = await window.ChitMirrorApi.sendMessage(senderId, text, selectedImage);
     if (senderPicker.value !== senderId) return;
     addTextBubble(senderLabel, text, outgoingKind, sentAt);
     if (!payload.bubbles.length) {
@@ -366,6 +401,7 @@ composer.addEventListener("submit", async function(event) {
     }
     payload.bubbles.forEach(renderBubble);
     messageInput.value = "";
+    clearSelectedImage();
     updateCommandHints();
     messageList.scrollTop = messageList.scrollHeight;
   } catch (error) {

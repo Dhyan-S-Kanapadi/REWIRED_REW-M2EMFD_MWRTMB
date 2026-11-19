@@ -190,3 +190,7 @@ python scripts/run_demo_scenarios.py
 ```
 
 The loader seeds synthetic members, payment claims, independent bank evidence, and audit events. It never clears existing records; loading requires an empty demo database and subsequent loads are safe no-ops. The foreman dashboard also has a **Load demo** button. No real bank transfer is made.
+
+
+## Screenshot verification setup
+Set `SARVAM_API_KEY` and `ANTHROPIC_API_KEY` in your local environment (or an uncommitted `.env` file) to enable both readers. The shared-message screenshot flow compares extracted fields and checks the seeded bank evidence. If either provider is unavailable or readings disagree, the upload stays in the foreman review queue. The agreement score is not a calibrated probability.
