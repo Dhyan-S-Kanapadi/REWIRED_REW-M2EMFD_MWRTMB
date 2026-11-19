@@ -17,10 +17,13 @@ On macOS/Linux use `.venv/bin/python` in place of `.\.venv\Scripts\python`.
 Open http://127.0.0.1:8000/chat/ and http://127.0.0.1:8000/dashboard/.
 API docs: http://127.0.0.1:8000/docs. No Node build step is required.
 
-Both pages call the backend directly. Each owns its `config.js`; set
-`window.CHITMIRROR_API_BASE` to switch its backend URL (empty means same origin).
-The backend currently exposes only `/health`; business API shapes and stubs
-remain T01 and T03 work. Separate origins require backend CORS configuration.
+Both pages call the backend directly. Each owns its `config.js`; the static host
+maps the single `CHITMIRROR_API_BASE` environment variable to
+`window.CHITMIRROR_API_BASE` (empty means same origin). Point it at the
+contract-compatible stub or real API to switch backends. The chat uses the
+shared `GET /state` and `POST /message` contract. The checked-in backend
+currently exposes only `/health`; the chat needs the T03 stub or real API.
+Separate origins require backend CORS configuration.
 
 ## Team folders
 

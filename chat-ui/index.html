@@ -3,16 +3,90 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f5">
   <title>ChitMirror Chat</title>
   <link rel="stylesheet" href="./style.css">
   <script src="./config.js" defer></script>
+  <script src="./api.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
-  <main>
-    <header><h1>ChitMirror Chat</h1><p>Screenshot in, verified ledger out.</p></header>
-    <p id="connection" role="status">Checking backend…</p>
-    <section aria-label="Chat workspace"><p>Chat workspace ready for T16.</p></section>
+  <main class="page-shell">
+    <header class="page-header">
+      <a class="brand" href="./" aria-label="ChitMirror home">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>
+          <strong>ChitMirror</strong>
+          <span class="brand-caption">Group payment chat</span>
+        </span>
+      </a>
+      <span class="privacy-note">Demo identities · No messages sent externally</span>
+    </header>
+
+    <section class="chat-card" aria-label="ChitMirror conversation">
+      <header class="chat-header">
+        <div class="conversation-identity">
+          <span class="group-avatar" aria-hidden="true">CM</span>
+          <div>
+            <h1>Chit group</h1>
+            <p id="connection" role="status" aria-live="polite">Connecting to the API…</p>
+          </div>
+        </div>
+        <label class="sender-field" for="sender">
+          <span>Sending as</span>
+          <select id="sender" name="sender" aria-label="Sending as">
+            <option value="foreman">Foreman</option>
+          </select>
+        </label>
+      </header>
+
+      <div id="error-banner" class="error-banner" role="alert" hidden>
+        <p id="error-message"></p>
+        <button id="retry-state" class="text-button" type="button" hidden>Try again</button>
+      </div>
+
+      <section id="conversation" class="conversation" aria-label="Messages">
+        <div id="empty-state" class="empty-state">
+          <span class="empty-icon" aria-hidden="true">↗</span>
+          <h2>Start a conversation</h2>
+          <p>Send a message or share a payment screenshot with your group.</p>
+        </div>
+        <div id="loading-state" class="loading-state" role="status" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Loading group members…</span>
+        </div>
+      </section>
+
+      <form id="message-form" class="composer">
+        <div id="image-preview" class="image-preview" hidden>
+          <img id="preview-image" alt="Screenshot selected for sending">
+          <div class="preview-details">
+            <span class="preview-title">Screenshot ready</span>
+            <span class="preview-caption">Attached to your message</span>
+          </div>
+          <button id="remove-image" class="remove-image" type="button" aria-label="Remove screenshot">×</button>
+        </div>
+
+        <label class="message-label" for="message-text">Message</label>
+        <textarea id="message-text" name="text" rows="2" placeholder="Write a message…" aria-label="Write a message"></textarea>
+        <div class="composer-footer">
+          <div class="composer-actions">
+            <button id="attach-button" class="attach-button" type="button" aria-label="Attach a screenshot">
+              <span aria-hidden="true">＋</span>
+              <span>Screenshot</span>
+            </button>
+            <input id="image-input" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-hidden="true">
+            <span id="send-status" class="send-status" role="status" aria-live="polite"></span>
+          </div>
+          <button id="send-button" class="send-button" type="submit" disabled>
+            <span>Send</span>
+            <span aria-hidden="true">↑</span>
+          </button>
+        </div>
+        <p class="composer-disclaimer">Screenshots are claims, not proof of payment.</p>
+      </form>
+    </section>
+    <footer class="page-footer">Private group conversation · Payment status is reported by the backend and is not independently verified in this chat.</footer>
   </main>
 </body>
 </html>
