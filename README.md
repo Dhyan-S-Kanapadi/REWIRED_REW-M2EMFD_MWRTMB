@@ -3,6 +3,26 @@
 Screenshot in, verified ledger out. A four-person, six-hour hackathon project.
 A payment screenshot is a claim; bank CSV evidence is required for verification.
 
+## Screenshots
+
+These project screenshots show the independent dashboard frontend with synthetic
+four-month demo data. They illustrate the interface; a screenshot itself is not
+evidence of a bank transaction or a completed end-to-end verification flow.
+
+<details>
+<summary>Foreman dashboard</summary>
+
+<img src="docs/demo/assets/dashboard-foreman.png" alt="ChitMirror foreman dashboard showing synthetic group summary, review queue, audit trail and ledger" width="900">
+
+</details>
+
+<details>
+<summary>Member dashboard</summary>
+
+<img src="docs/demo/assets/dashboard-member.png" alt="ChitMirror member dashboard showing a synthetic statement, private reminder and group ledger" width="900">
+
+</details>
+
 ## Run locally
 
 Use Python 3.12 or newer. From the repository root:
@@ -41,9 +61,14 @@ canned message results, send `stub:verified`, `stub:duplicate`,
 `stub:reminder` in the multipart text field. Other messages return a text bubble.
 Responses use the shared synthetic fixtures in `data/fixtures/`. The stub
 does not persist state, actually send reminders, reset data, or verify screenshots.
-The backend exposes `/health`, `/state`, and `/reminders/send`; other business
-endpoints remain separate work. The shared API contract is in `contracts/`.
-Separate origins require backend CORS configuration.
+The real development backend exposes `/health`, `/state`, `/message`,
+`/reminders/send`, and `/demo/load`. Its `/message` endpoint currently echoes
+text and, for an uploaded image, uses the configured screenshot reader to return
+`needs_review`; it does not reconcile that image against bank evidence or write a
+verified payment to the ledger. The Chat UI and backend message request formats
+still need integration work before a screenshot-to-dashboard flow can be shown.
+The shared API contract is in `contracts/`. Separate origins require backend
+CORS configuration.
 
 The backend stores private demo reminder bubbles in SQLite (`data/chitmirror.db`
 by default; set `CHITMIRROR_DATABASE` to override). While the server is running,
@@ -180,3 +205,20 @@ python scripts/run_demo_scenarios.py
 ```
 
 The loader seeds synthetic members, payment claims, independent bank evidence, and audit events. It never clears existing records; loading requires an empty demo database and subsequent loads are safe no-ops. The foreman dashboard also has a **Load demo** button. No real bank transfer is made.
+
+The five planted results printed by `scripts/run_demo_scenarios.py` are produced
+by the offline synthetic scenario runner. They verify its deterministic rules
+against `data/bank.csv`; they are not responses from the screenshot reader or
+the `/message` API. Late-fee and payout calculations have backend service tests,
+but no live Chat-to-ledger demo path is claimed for them. Reminder delivery is
+an in-app private bubble, not a WhatsApp message.
+
+## Demo status
+
+Issue #24 remains open and blocked on the end-to-end acceptance: submit a fake
+screenshot in Chat, see the Dashboard flag within 10 seconds, confirm an audit
+row, then verify the setup on real phones and a projector. Until that is tested,
+the screenshots above are UI previews and the final T30 rehearsals are pending.
+See [the timed demo script](docs/demo/CHITMIRROR_DEMO_SCRIPT.md),
+[verification notes](docs/demo/VALIDATION.md), and
+[rehearsal checklist](docs/demo/REHEARSAL_CHECKLIST.md).
